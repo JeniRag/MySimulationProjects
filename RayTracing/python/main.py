@@ -24,7 +24,7 @@ if __name__=="__main__":
 
 
     O=np.array([0.0, 0.0, -1.0]) #origin (camera position)
-    Light_source=np.array([-0.1,0.6, 0.8])
+    Light_source=np.array([-1.0,0.0, 0.8])
     
     #make sure light source is not inside the object
     for obj in objects:
@@ -36,16 +36,35 @@ if __name__=="__main__":
     h=400
     w=400
 
-    pixel_object = Pixels(h,w)
-
+    # pixel_object = Pixels(h,w)
     
-    start = time.time()
-    pixel_traced = ray_casting(pixel_object,objects, O)
-    pixel_color=compute_illumination(Light_source,pixel_traced, objects)
-    end = time.time()
-    print(f"{np.round(end-start,2)} s")
+    # start = time.time()
+    # pixel_traced = ray_casting(pixel_object,objects, O)
+    # pixel_color=compute_illumination(Light_source,pixel_traced, objects)
+    # end = time.time()
+    # print(f"with loops: {np.round(end-start,2)} s")
 
-    #%%
+    # plt.figure()
+    # plt.title("shadow included")
+    # plt.imshow(pixel_color)
+    
+    pixel_object = Pixels(h,w)
+    start =  time.time()
+    pixel_traced = ray_casting_matrix(pixel_object, objects, O)
+    print("illumination--------------")
+    pixel_color = compute_illumination_matrix(Light_source, pixel_traced, objects)
+    end = time.time()
+    print(f"with matrix: {np.round(end-start,2)} s")
     plt.figure()
-    plt.title("shadow included")
     plt.imshow(pixel_color)
+    
+    # intermediate_color = np.zeros_like(pixel_object.iHit)
+    # for i in range(intermediate_color.shape[0]):
+    #     for j in range(intermediate_color.shape[1]):
+    #         idx = pixel_traced.iobj[i][j] 
+    #         if np.isnan(idx) == False:
+    #             idx = int(idx)
+    #             intermediate_color[i][j]=objects[idx].color
+    # plt.figure()        
+    # plt.imshow(intermediate_color)
+    
