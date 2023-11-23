@@ -123,16 +123,16 @@ def intersects_sphere(obj, prim_ray, O):
         return False
     
 def intersects_sphere_matrix(obj, prim_ray, O_matrix):
-    print(f" prim_ray: {np.any(np.isnan(prim_ray))==False}")
-    print(prim_ray)
+    
+    
+    #a = np.dot(d,d)
     a = prim_ray[:,:,0] * prim_ray[:,:,0] + prim_ray[:,:,1] * prim_ray[:,:,1] + prim_ray[:,:,2] * prim_ray[:,:,2]  #np.dot(prim_ray, prim_ray) 
+    assert a.shape == (prim_ray.shape[0], prim_ray.shape[1])
     
-    
-    print(f" a: {np.any(np.isnan(a))==False}")
+    # print(f" a: {np.any(np.isnan(a))==False}")
     
     #2D array
     OR_diff = O_matrix - obj.center
-    #1D
     
     b = 2* (OR_diff[:,:, 0] * prim_ray[:,:,0] + OR_diff[:,:,1] * prim_ray[:,:,1] + OR_diff[:,:,2]* prim_ray[:,:,2])
     #2D array
@@ -142,10 +142,13 @@ def intersects_sphere_matrix(obj, prim_ray, O_matrix):
    
     
     D=b**2-4*a*c
-    # print(D)
+   
+    
     
     cond = (D>=0) #elementes where condition is fulfilled
-    # print(f"any D >=0: {np.any(D>=0)}")
+   
+    nonan = ~np.isnan(D)
+ 
     
     q=np.full_like(a, np.nan)
     t1 =np.full_like(a, np.nan)
@@ -157,6 +160,7 @@ def intersects_sphere_matrix(obj, prim_ray, O_matrix):
     t2[cond] = c[cond] / q[cond]
 
     tcond = ((t1 >0) & (t2 >0) & (D>=0))
+   
     t[tcond] = np.min((t1[tcond], t2[tcond]), axis=0)
     t_matrix = np.full_like(prim_ray, np.nan)
     t_matrix[:,:,0] = t
@@ -164,13 +168,13 @@ def intersects_sphere_matrix(obj, prim_ray, O_matrix):
     t_matrix[:,:,2] = t
     
     pHit = np.full_like(prim_ray, np.nan)
-    pHit[tcond, :] = prim_ray[tcond,:] + t_matrix[tcond,:] + O_matrix[tcond,:]
+    pHit[tcond, :] = prim_ray[tcond,:] * t_matrix[tcond,:] + O_matrix[tcond,:]
     
     N = np.full_like(prim_ray, np.nan)
     N[tcond, :] =( pHit[tcond, :] - obj.center) / obj.radius
     #normalize?
    
-    print(f"t cond {np.any(tcond == True)}")
+    # print(f"t cond {np.any(tcond == True)}")
     return pHit, N, tcond
      
     
@@ -220,7 +224,6 @@ def ray_casting_matrix(pixel_object, objects, O):
     
     for obj_idx, obj in enumerate(objects):
         pHit, N, is_intersecting = intersects_sphere_matrix(obj, prim_ray_matrix, O_matrix)
-        print(f"ray casting : {np.any(is_intersecting == True)}")
         
         # not_intersecting = np.isnan(pHit[:,:,0]) #condition same as _
         # is_intersecting = ~not_intersecting
@@ -284,42 +287,45 @@ def compute_illumination_matrix(L, pixel_object, objects):
     L_matrix[:,:,1] = L[1]
     L_matrix[:,:,2] = L[2]
     
+    
+    
     pixel_color = np.zeros((pixel_object.height, pixel_object.width, 3), dtype = float)
     
     not_visible = np.isnan(pixel_object.iobj) #condition
     is_visible = ~not_visible
-    print(f"any are visible {np.any(is_visible == True)}")
+  
     
     shadow_direction = np.full_like(pixel_object.iHit, np.nan)
+    
     shadow_origin = np.full_like(pixel_object.iHit, np.nan)
     
     shadow_direction[is_visible,:] = L_matrix[is_visible,:] - pixel_object.iHit[is_visible,:] 
    
     norm = np.linalg.norm(shadow_direction, axis=2)[:,:, np.newaxis]
-    shadow_direction /=norm
+    shadow_direction[is_visible, :] /=norm[is_visible, :]
 
-    print(f"shadow norm: {np.any(np.isnan(norm) == False)}")
-    print(f"shadow normalized: {np.any(np.isnan(shadow_direction) == False)}")
-    
+    # print(f"shadow norm: {np.any(np.isnan(norm) == False)}")
+
     shadow_origin[is_visible,:] = pixel_object.iHit[is_visible,:] + pixel_object.iN[is_visible,:] *1e-1
     
     is_shadow = np.full_like(pixel_object.iobj, False, dtype = bool)
     
+    
+    #Problem: shadow_direction to nans inside functino
+    
     for other_obj in objects:
+
         _, _, is_intersecting = intersects_sphere_matrix(other_obj, shadow_direction, shadow_origin)
-        # print(f"any not nans: {np.any(np.isnan(shadow_origin) == False)}")
-        print(f"illumination any intersecting: {np.any(is_intersecting)==True}")
         
         is_shadow[is_intersecting] = True
         pixel_color[is_intersecting,:] = np.zeros(3)
-        # print(np.any(is_shadow == True))
         #pixel color stays black
         
     not_shadow = ~is_shadow
-    print(f"There are any shadows: {np.any(is_shadow == True)}")
+    # print(f"There are any shadows: {np.any(is_shadow == True)}")
     # find a way to avoid for loop
     cond = not_shadow * is_visible
-    print(f"There are visible and not visible: {np.any(cond == False) * np.any(cond == True)}")
+    # print(f"There are visible and not visible: {np.any(cond == False) * np.any(cond == True)}")
     for i in range(pixel_object.height):
         for j in range(pixel_object.width):
             if cond[i][j]:
